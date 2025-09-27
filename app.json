@@ -19,7 +19,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.harveeofficial.testapp"
     },
     "web": {
       "output": "static",
@@ -27,6 +32,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Catcha to access your location to tag catches and track fishing trips.",
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -43,6 +55,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://192.168.254.165:8000",
+      "webCreateUrl": "http://192.168.254.165:8000/catches/create",
+      "apiToken": "",
+      "router": {},
+      "eas": {
+        "projectId": "0299c735-e787-4082-926e-6051d14972f5"
+      }
     }
   }
 }
