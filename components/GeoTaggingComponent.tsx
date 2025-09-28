@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as ExpoLinking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { GeoTaggingService, LocationData, WayfareTrack } from '../utils/geoTagging';
 
@@ -207,6 +208,15 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
     return new Date(timestamp).toLocaleString();
   };
 
+  const openStartWayfareDeepLink = useCallback(() => {
+    // testapp://start-wayfare is based on app.json expo.scheme
+    const scheme = (Constants.expoConfig?.scheme as string) || 'testapp';
+    const url = ExpoLinking.createURL('start-wayfare');
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Open failed', 'Could not open the deep link.');
+    });
+  }, []);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
@@ -352,6 +362,15 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
               <Text style={styles.buttonText}>
                 {wayfareTrack.meta.isRunning ? 'Stop Tracking' : 'Start Tracking'}
               </Text>
+            </TouchableOpacity>
+
+            {/* Deep link Launcher for Web "Start Wayfare" button */}
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary, { marginTop: 10 }]}
+              onPress={openStartWayfareDeepLink}
+            >
+              <Ionicons name="link-outline" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Open start-wayfare link</Text>
             </TouchableOpacity>
           </View>
         )}

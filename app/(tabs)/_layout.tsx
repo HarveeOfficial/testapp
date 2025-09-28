@@ -28,20 +28,6 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="catch"
-                options={{
-                    headerTitle: "Record Catch",
-                    tabBarIcon: ({ focused, color }) => (
-                        <Ionicons
-                            name={focused ? "fish" : "fish-outline"}
-                            size={24}
-                            color={color}
-                        />
-                    ),
-                    headerShown: false,
-                }}
-            />
-            <Tabs.Screen
                 name="about"
                 options={{
                     headerTitle: "About Us",
