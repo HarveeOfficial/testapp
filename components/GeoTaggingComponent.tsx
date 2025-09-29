@@ -325,7 +325,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
         )}
 
         {/* Wayfare Tracking Section */}
-        {showWayfare && (
+        {/* {showWayfare && (
           <View style={styles.wayfareSection}>
             <Text style={styles.cardTitle}>🛤️ Wayfare Tracking</Text>
             <View style={styles.wayfareStatus}>
@@ -362,10 +362,10 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
               <Text style={styles.buttonText}>
                 {wayfareTrack.meta.isRunning ? 'Stop Tracking' : 'Start Tracking'}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {/* Deep link Launcher for Web "Start Wayfare" button */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.button, styles.buttonSecondary, { marginTop: 10 }]}
               onPress={openStartWayfareDeepLink}
             >
@@ -373,7 +373,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
               <Text style={styles.buttonText}>Open start-wayfare link</Text>
             </TouchableOpacity>
           </View>
-        )}
+        )} */}
 
         {/* Clear Data Button */}
         <TouchableOpacity
