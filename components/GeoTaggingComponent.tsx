@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getToken } from '../utils/auth';
 import { GeoTaggingService, LocationData, WayfareTrack } from '../utils/geoTagging';
+import { clearSavedLiveTrack, endLiveTrackSession, ensureLiveTrack, getSavedLiveTrack, pushLocationAsLivePoint } from '../utils/liveTracking';
+import { AuthModal } from './AuthModal';
 
 interface GeoTaggingComponentProps {
   onLocationChange?: (location: LocationData | null) => void;
@@ -36,6 +39,11 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   const [wayfareDistance, setWayfareDistance] = useState(0);
   const [manualLat, setManualLat] = useState('');
   const [manualLon, setManualLon] = useState('');
+  const [liveTrack, setLiveTrack] = useState<null | { publicId: string; writeKey: string; ingestUrl: string; pollUrl: string; mapUrl: string }>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const streamingRef = useRef(false);
+  const liveTrackRef = useRef<typeof liveTrack>(null);
 
   const geoService = GeoTaggingService.getInstance();
 
@@ -43,7 +51,14 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   useEffect(() => {
     loadSavedPosition();
     loadWayfareData();
+    (async () => {
+      const t = await getSavedLiveTrack();
+      if (t) setLiveTrack(t);
+    })();
   }, []);
+
+  useEffect(() => { streamingRef.current = isStreaming; }, [isStreaming]);
+  useEffect(() => { liveTrackRef.current = liveTrack; }, [liveTrack]);
 
   // Update parent component when location changes
   useEffect(() => {
@@ -92,11 +107,24 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
     if (isWatching) {
       geoService.stopLocationWatch();
       setIsWatching(false);
+      setIsStreaming(false);
     } else {
-      const success = await geoService.startLocationWatch((location) => {
+      const success = await geoService.startLocationWatch(async (location) => {
         setCurrentLocation(location);
         setManualLat(location.latitude.toFixed(6));
         setManualLon(location.longitude.toFixed(6));
+        // If streaming is enabled and live track exists, push point
+        const lt = liveTrackRef.current;
+        if (streamingRef.current && lt) {
+          await pushLocationAsLivePoint(lt, {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            speed: undefined,
+            heading: undefined,
+            timestamp: location.timestamp,
+          });
+        }
       });
       
       if (success) {
@@ -106,6 +134,122 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
       }
     }
   }, [isWatching]);
+
+  const handleCreateLiveTrack = useCallback(async () => {
+    if (liveTrack) {
+      Alert.alert('Track already exists', 'Please End Track (Server) or Reset Track before creating a new one.');
+      return;
+    }
+    try {
+      const t = await ensureLiveTrack();
+      setLiveTrack(t);
+      Alert.alert('Live Track Ready', 'A new live track has been created. You can start streaming points.');
+    } catch (e: any) {
+      Alert.alert('Live Track Error', e?.message || 'Failed to create live track');
+    }
+  }, [liveTrack]);
+
+  // Unified Live Tracking button handler: Create → Watch → (manual Stream)
+  const handleLiveTrackingUnified = useCallback(async () => {
+    // Check if user is authenticated
+    const token = await getToken();
+    if (!token) {
+      setAuthModalVisible(true);
+      return;
+    }
+
+    // Step 1: Create track if none exists
+    if (!liveTrack) {
+      try {
+        const t = await ensureLiveTrack();
+        setLiveTrack(t);
+        // Continue to step 2 immediately: start GPS watch
+        const success = await geoService.startLocationWatch(async (location) => {
+          setCurrentLocation(location);
+          setManualLat(location.latitude.toFixed(6));
+          setManualLon(location.longitude.toFixed(6));
+          // If streaming is enabled and live track exists, push point
+          const lt = liveTrackRef.current;
+          if (streamingRef.current && lt) {
+            await pushLocationAsLivePoint(lt, {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: location.accuracy,
+              speed: undefined,
+              heading: undefined,
+              timestamp: location.timestamp,
+            });
+          }
+        });
+
+        if (success) {
+          setIsWatching(true);
+          // Do NOT auto-start streaming; let user manually tap to start
+          Alert.alert('Ready to Stream', 'Track created and GPS watching started. Tap again to start streaming.');
+        } else {
+          Alert.alert('Error', 'Could not start location watching. Please check permissions.');
+        }
+      } catch (e: any) {
+        Alert.alert('Live Track Error', e?.message || 'Failed to create live track');
+      }
+      return;
+    }
+
+    // Track exists: toggle streaming on/off
+    if (isStreaming) {
+      setIsStreaming(false);
+      Alert.alert('Streaming Stopped', 'Live points are no longer being sent.');
+    } else {
+      setIsStreaming(true);
+      Alert.alert('Streaming Started', 'Live points are now being streamed.');
+    }
+  }, [liveTrack, isWatching, isStreaming, geoService]);
+
+  const handleToggleStreaming = useCallback(async () => {
+    if (!liveTrack) {
+      Alert.alert('No track', 'Create a live track first.');
+      return;
+    }
+    if (!isWatching) {
+      Alert.alert('Not watching GPS', 'Start GPS Watch to stream live points.');
+      return;
+    }
+    setIsStreaming((v) => !v);
+  }, [liveTrack, isWatching]);
+
+  const handleOpenLiveMap = useCallback(() => {
+    if (!liveTrack?.mapUrl) {
+      Alert.alert('No map URL', 'Create a live track first.');
+      return;
+    }
+    Linking.openURL(liveTrack.mapUrl).catch(() => Alert.alert('Open failed', 'Could not open the public map URL.'));
+  }, [liveTrack]);
+
+  const handleResetLiveTrack = useCallback(async () => {
+    await clearSavedLiveTrack();
+    setLiveTrack(null);
+    setIsStreaming(false);
+    Alert.alert('Reset', 'Live track info cleared.');
+  }, []);
+
+  const handleEndLiveTrack = useCallback(async () => {
+    if (!liveTrack) {
+      Alert.alert('No track', 'Create a live track first.');
+      return;
+    }
+    try {
+      const res = await endLiveTrackSession(liveTrack);
+      if (res.ok) {
+        setIsStreaming(false);
+        setLiveTrack(null);
+        Alert.alert('Ended', 'Live track has been ended on the server.');
+      } else {
+        Alert.alert('End Failed', res.error || 'Could not end live track.');
+      }
+    } catch (e: any) {
+      Alert.alert('End Failed', e?.message || 'Could not end live track.');
+    }
+  }, [liveTrack]);
 
   const handleToggleWayfare = useCallback(async () => {
     if (wayfareTrack.meta.isRunning) {
@@ -209,8 +353,8 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   };
 
   const openStartWayfareDeepLink = useCallback(() => {
-    // testapp://start-wayfare is based on app.json expo.scheme
-    const scheme = (Constants.expoConfig?.scheme as string) || 'testapp';
+    // catcha://start-wayfare is based on app.json expo.scheme
+    const scheme = (Constants.expoConfig?.scheme as string) || 'catcha';
     const url = ExpoLinking.createURL('start-wayfare');
     Linking.openURL(url).catch(() => {
       Alert.alert('Open failed', 'Could not open the deep link.');
@@ -284,6 +428,83 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
             <Ionicons name="open-outline" size={20} color="#fff" />
             <Text style={styles.buttonText}>Open Web Form (Prefill)</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Live Tracking (Beta) */}
+        <View style={styles.liveSection}>
+          <Text style={styles.cardTitle}>🛰️ Live Tracking (Beta)</Text>
+          {liveTrack ? (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.metaText}>publicId: {liveTrack.publicId}</Text>
+              <Text style={styles.metaText}>ingest: {liveTrack.ingestUrl}</Text>
+              <Text style={styles.metaText}>poll: {liveTrack.pollUrl}</Text>
+              <Text style={styles.metaText}>map: {liveTrack.mapUrl}</Text>
+            </View>
+          ) : (
+            <Text style={styles.noLocationText}>No live track created yet.</Text>
+          )}
+
+          {/* Unified Live Tracking Button */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                !liveTrack && styles.buttonSuccess,
+                liveTrack && !isStreaming && styles.buttonSecondary,
+                isStreaming && styles.buttonActive
+              ]}
+              onPress={handleLiveTrackingUnified}
+            >
+              <Ionicons
+                name={
+                  !liveTrack
+                    ? 'radio-outline'
+                    : isStreaming
+                    ? 'pause'
+                    : 'paper-plane-outline'
+                }
+                size={20}
+                color="#fff"
+              />
+              <Text style={styles.buttonText}>
+                {!liveTrack
+                  ? 'Start Live Tracking'
+                  : isStreaming
+                  ? 'Stop Streaming'
+                  : 'Start Streaming'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Map and Control Buttons */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary, !liveTrack && styles.buttonDisabled]}
+              onPress={handleOpenLiveMap}
+              disabled={!liveTrack}
+            >
+              <Ionicons name="map-outline" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Open Public Map</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonDanger]}
+              onPress={handleResetLiveTrack}
+              disabled={!liveTrack}
+            >
+              <Ionicons name="refresh" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Reset</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonDanger]}
+              onPress={handleEndLiveTrack}
+              disabled={!liveTrack}
+            >
+              <Ionicons name="stop" size={20} color="#fff" />
+              <Text style={styles.buttonText}>End</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Manual Input Section */}
@@ -384,6 +605,17 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
           <Text style={styles.buttonText}>Clear Location Data</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Auth Modal */}
+      <AuthModal
+        visible={authModalVisible}
+        onSuccess={() => {
+          setAuthModalVisible(false);
+          // Re-trigger the unified handler now that user is authenticated
+          handleLiveTrackingUnified();
+        }}
+        onCancel={() => setAuthModalVisible(false)}
+      />
     </ScrollView>
   );
 };
@@ -525,6 +757,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    marginTop: 8,
+  },
+  liveSection: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     marginTop: 8,
   },
 });

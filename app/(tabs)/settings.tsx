@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { clearToken } from '../../utils/auth';
 import { GeoTaggingService } from '../../utils/geoTagging';
 
 interface SettingsData {
@@ -99,23 +102,84 @@ export default function SettingsScreen() {
       const wayfareTrack = await geoService.getWayfareTrack();
       const currentLocation = await geoService.loadSavedPosition();
       
-      const exportData = {
-        currentLocation,
-        wayfareTrack,
-        settings,
-        exportedAt: new Date().toISOString()
-      };
-
-      // In a real app, you would implement actual export functionality
-      console.log('Export Data:', JSON.stringify(exportData, null, 2));
+      const fileName = `catcha-export-${new Date().getTime()}.csv`;
       
-      Alert.alert(
-        'Data Export',
-        'Location and wayfare data has been logged to console. In a production app, this would be exported to a file or cloud service.',
-        [{ text: 'OK' }]
-      );
+      // Build CSV content - simple format with latitude, longitude, timestamp
+      let csvContent = 'Latitude,Longitude,Timestamp\n';
+      
+      // Add current location
+      if (currentLocation) {
+        csvContent += `${currentLocation.latitude},${currentLocation.longitude},${new Date(currentLocation.timestamp).toISOString()}\n`;
+      }
+      
+      // Add wayfare track points
+      if (wayfareTrack && wayfareTrack.points.length > 0) {
+        wayfareTrack.points.forEach((point: any) => {
+          csvContent += `${point.latitude},${point.longitude},${new Date(point.timestamp).toISOString()}\n`;
+        });
+      }
+      
+      // Save to phone's file system using legacy API
+      const docDir = FileSystem.documentDirectory;
+      const cacheDir = FileSystem.cacheDirectory;
+      
+      console.log('📁 FILE SYSTEM PATHS:');
+      console.log('documentDirectory:', docDir);
+      console.log('cacheDirectory:', cacheDir);
+      
+      if (!docDir && !cacheDir) {
+        throw new Error('No document or cache directory available');
+      }
+      
+      const dirPath = `${docDir || cacheDir}Catcha/`;
+      const filePath = `${dirPath}${fileName}`;
+      
+      console.log('📝 SAVE DETAILS:');
+      console.log('dirPath:', dirPath);
+      console.log('filePath:', filePath);
+      
+      // Create directory first, then write file
+      try {
+        console.log('Creating directory:', dirPath);
+        await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+        console.log('✅ Directory created');
+      } catch (dirError: any) {
+        console.log('ℹ️ Directory note:', dirError.message);
+      }
+      
+      // Write the file to cache (Expo's internal storage)
+      console.log('Writing CSV file...');
+      await FileSystem.writeAsStringAsync(filePath, csvContent);
+      console.log('✅ File written successfully to:', filePath);
+      
+      // Verify file exists
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(filePath);
+        console.log('✅ File verified - exists:', fileInfo.exists, 'uri:', fileInfo.uri);
+      } catch (verifyError) {
+        console.log('⚠️ Could not verify file:', verifyError);
+      }
+      
+      // Share the file so user can save it to their device
+      console.log('Opening share dialog...');
+      try {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Save CSV Export',
+          UTI: 'public.comma-separated-values-text',
+        });
+        console.log('✅ Share dialog opened');
+      } catch (shareError) {
+        console.log('Share error:', shareError);
+        Alert.alert(
+          'Export Created ✅',
+          `CSV file created!\n\nFile: ${fileName}\n\nPath:\n${filePath}\n\nYou can now copy this file from the Expo app's file storage.`,
+          [{ text: 'OK' }]
+        );
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to export data');
+      console.error('Export error:', error);
+      Alert.alert('Error', `Failed to export data: ${error}`);
     }
   };
 
@@ -130,28 +194,57 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Clear your authentication token?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearToken();
+              Alert.alert('Success', 'You have been logged out.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#25292e" />
+      <StatusBar barStyle="light-content" backgroundColor="#0f0f0f" />
       <ScrollView style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>⚙️ Settings</Text>
-          <Text style={styles.subtitle}>Configure Geo-Tagging Options</Text>
+          <View style={styles.headerContent}>
+            <Ionicons name="settings" size={40} color="#1e90ff" />
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Settings</Text>
+              <Text style={styles.subtitle}>Manage your preferences</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.content}>
-          {/* Location Settings */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="location" size={24} color="#1e90ff" /> Location Settings
-            </Text>
+          {/* Location Settings Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="location" size={20} color="#1e90ff" />
+              <Text style={styles.cardTitle}>Location</Text>
+            </View>
             
-            <View style={styles.settingItem}>
+            <View style={styles.divider} />
+
+            <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>High Accuracy GPS</Text>
-                <Text style={styles.settingDescription}>
-                  Use GPS for best accuracy (uses more battery)
-                </Text>
+                <Text style={styles.settingDescription}>Best accuracy, more battery</Text>
               </View>
               <Switch
                 value={settings.highAccuracy}
@@ -161,12 +254,12 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.settingItem}>
+            <View style={styles.divider} />
+
+            <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Auto-Start Location Watch</Text>
-                <Text style={styles.settingDescription}>
-                  Automatically start watching location when app opens
-                </Text>
+                <Text style={styles.settingLabel}>Auto-Start Watch</Text>
+                <Text style={styles.settingDescription}>Start on app open</Text>
               </View>
               <Switch
                 value={settings.autoWatch}
@@ -175,76 +268,117 @@ export default function SettingsScreen() {
                 thumbColor={settings.autoWatch ? '#fff' : '#ccc'}
               />
             </View>
-          </View>
 
-          {/* Wayfare Settings */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="navigate" size={24} color="#ff9800" /> Wayfare Settings
-            </Text>
-            
-            <View style={styles.settingItem}>
+            <View style={styles.divider} />
+
+            <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Save Wayfare Data</Text>
-                <Text style={styles.settingDescription}>
-                  Automatically save movement tracking data
-                </Text>
+                <Text style={styles.settingDescription}>Track movement history</Text>
               </View>
               <Switch
                 value={settings.saveWayfare}
                 onValueChange={() => handleToggle('saveWayfare')}
-                trackColor={{ false: '#444', true: '#1e90ff' }}
+                trackColor={{ false: '#444', true: '#ff9800' }}
                 thumbColor={settings.saveWayfare ? '#fff' : '#ccc'}
               />
             </View>
           </View>
 
-          {/* Data Management */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="server" size={24} color="#4CAF50" /> Data Management
-            </Text>
+          {/* Permissions Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="shield-checkmark" size={20} color="#4CAF50" />
+              <Text style={styles.cardTitle}>Permissions</Text>
+            </View>
             
-            <TouchableOpacity style={styles.actionButton} onPress={handleCheckPermissions}>
-              <Ionicons name="shield-checkmark" size={20} color="#1e90ff" />
-              <Text style={styles.actionButtonText}>Check Location Permissions</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.buttonSmall}
+              onPress={handleCheckPermissions}
+            >
+              <Text style={styles.buttonSmallText}>Check Location Permissions</Text>
+              <Ionicons name="chevron-forward" size={18} color="#aaa" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Data Management Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="download" size={20} color="#ff9800" />
+              <Text style={styles.cardTitle}>Data</Text>
+            </View>
+            
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.buttonSmall}
+              onPress={handleExportData}
+            >
+              <Text style={styles.buttonSmallText}>Export Location Data</Text>
+              <Ionicons name="chevron-forward" size={18} color="#aaa" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={handleExportData}>
-              <Ionicons name="download" size={20} color="#4CAF50" />
-              <Text style={styles.actionButtonText}>Export Location Data</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
+            <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.dangerButton} onPress={handleClearAllData}>
-              <Ionicons name="trash" size={20} color="#f44336" />
+            <TouchableOpacity 
+              style={[styles.buttonSmall, styles.dangerButtonSmall]}
+              onPress={handleClearAllData}
+            >
               <Text style={styles.dangerButtonText}>Clear All Data</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
+              <Ionicons name="chevron-forward" size={18} color="#f44336" />
             </TouchableOpacity>
           </View>
 
-          {/* App Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="information-circle" size={24} color="#9c27b0" /> App Information
-            </Text>
+          {/* Account Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="log-out" size={20} color="#f44336" />
+              <Text style={styles.cardTitle}>Account</Text>
+            </View>
             
-            <View style={styles.infoItem}>
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={[styles.buttonSmall, styles.dangerButtonSmall]}
+              onPress={handleLogout}
+            >
+              <Text style={styles.dangerButtonText}>Logout</Text>
+              <Ionicons name="chevron-forward" size={18} color="#f44336" />
+            </TouchableOpacity>
+          </View>
+
+          {/* App Info Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="information-circle" size={20} color="#9c27b0" />
+              <Text style={styles.cardTitle}>About</Text>
+            </View>
+            
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Geohash Precision</Text>
-              <Text style={styles.infoValue}>{settings.geohashPrecision} characters</Text>
+              <Text style={styles.infoValue}>{settings.geohashPrecision}</Text>
             </View>
-            
-            <View style={styles.infoItem}>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Location Sources</Text>
-              <Text style={styles.infoValue}>GPS, Network, Manual Input</Text>
+              <Text style={styles.infoValue}>GPS, Network, Manual</Text>
             </View>
-            
-            <View style={styles.infoItem}>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Data Storage</Text>
-              <Text style={styles.infoValue}>Local Device Only</Text>
+              <Text style={styles.infoValue}>Local Device</Text>
             </View>
           </View>
+
+          <View style={styles.spacer} />
         </View>
       </ScrollView>
     </>
@@ -254,112 +388,120 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#0f0f0f',
   },
   header: {
-    padding: 20,
-    paddingTop: 50,
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 30,
+    backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: '#2a2a2a',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#1e90ff',
-    marginBottom: 10,
-  },
-  content: {
-    padding: 20,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-  },
-  settingInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '700',
     color: '#fff',
     marginBottom: 4,
   },
-  settingDescription: {
+  subtitle: {
     fontSize: 14,
     color: '#aaa',
-    lineHeight: 18,
   },
-  actionButton: {
+  content: {
+    padding: 16,
+    paddingTop: 24,
+  },
+  card: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
-  actionButtonText: {
-    flex: 1,
+  cardTitle: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 15,
     fontWeight: '500',
     color: '#fff',
-    marginLeft: 12,
+    marginBottom: 2,
   },
-  dangerButton: {
+  settingDescription: {
+    fontSize: 13,
+    color: '#888',
+  },
+  buttonSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3a2a2a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f44336',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  buttonSmallText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  dangerButtonSmall: {
+    backgroundColor: 'rgba(244, 67, 54, 0.05)',
   },
   dangerButtonText: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#f44336',
-    marginLeft: 12,
   },
-  infoItem: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   infoLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#fff',
   },
   infoValue: {
-    fontSize: 16,
-    color: '#aaa',
+    fontSize: 13,
+    color: '#888',
     fontFamily: 'monospace',
+  },
+  spacer: {
+    height: 20,
   },
 });

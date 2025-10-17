@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "testapp",
-    "slug": "testapp",
+    "name": "Catcha",
+    "slug": "catcha",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/catcha_logo.png",
-    "scheme": "testapp",
+    "scheme": "catcha",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -22,7 +22,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.harveeofficial.testapp"
+      "package": "com.harveeofficial.catcha"
     },
     "web": {
       "output": "static",
@@ -55,11 +55,9 @@
       "reactCompiler": true
     },
     "extra": {
-      // "apiBaseUrl": "http://192.168.254.165:8000",
-      "apiBaseUrl": "http://192.168.74.213:8000/",
-      // "webCreateUrl": "http://192.168.254.165:8000/catches/create",
-      "webCreateUrl": "http://192.168.74.213:8000/catches/create",
-      "apiToken": "",
+      "apiBaseUrl": "http://192.168.74.247:8000/",
+      "webCreateUrl": "http://192.168.74.247:8000/catches/create",
+      "apiToken": "7ead92035ceb0a6c51b1b1f354444fdf6c319f1b49365c577dc5e1296df5adb9",
       "router": {},
       "eas": {
         "projectId": "0299c735-e787-4082-926e-6051d14972f5"
