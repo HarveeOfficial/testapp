@@ -55,8 +55,8 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.74.247:8000/",
-      "webCreateUrl": "http://192.168.74.247:8000/catches/create",
+      "apiBaseUrl": "http://192.168.74.127:8000/",
+      "webCreateUrl": "http://192.168.74.127:8000/catches/create",
       "apiToken": "7ead92035ceb0a6c51b1b1f354444fdf6c319f1b49365c577dc5e1296df5adb9",
       "router": {},
       "eas": {

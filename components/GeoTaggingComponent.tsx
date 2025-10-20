@@ -16,6 +16,7 @@ import {
 import { getToken } from '../utils/auth';
 import { GeoTaggingService, LocationData, WayfareTrack } from '../utils/geoTagging';
 import { clearSavedLiveTrack, endLiveTrackSession, ensureLiveTrack, getSavedLiveTrack, pushLocationAsLivePoint } from '../utils/liveTracking';
+import { useTheme } from '../utils/ThemeContext';
 import { AuthModal } from './AuthModal';
 
 interface GeoTaggingComponentProps {
@@ -29,6 +30,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   showWayfare = true,
   showManualInput = true
 }) => {
+  const { theme } = useTheme();
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
@@ -362,38 +364,38 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   }, []);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📍 Geo-Tagging</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>📍 Geo-Tagging</Text>
         
         {/* Current Location Display */}
-        <View style={styles.locationCard}>
-          <Text style={styles.cardTitle}>Current Location</Text>
+        <View style={[styles.locationCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Current Location</Text>
           {currentLocation ? (
             <View>
-              <Text style={styles.locationText}>
+              <Text style={[styles.locationText, { color: '#4CAF50' }]}>
                 📍 {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
               </Text>
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
                 🔗 Geohash: {currentLocation.geohash}
               </Text>
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
                 📡 Source: {currentLocation.source.toUpperCase()}
                 {currentLocation.accuracy && ` ${formatAccuracy(currentLocation.accuracy)}`}
               </Text>
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
                 🕒 {formatTimestamp(currentLocation.timestamp)}
               </Text>
             </View>
           ) : (
-            <Text style={styles.noLocationText}>No location data available</Text>
+            <Text style={[styles.noLocationText, { color: theme.colors.textSecondary }]}>No location data available</Text>
           )}
         </View>
 
         {/* Action Buttons */}
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={[styles.button, isDetecting && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: theme.colors.primary }, isDetecting && styles.buttonDisabled]}
             onPress={handleDetectLocation}
             disabled={isDetecting}
           >
@@ -431,17 +433,17 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
         </View>
 
         {/* Live Tracking (Beta) */}
-        <View style={styles.liveSection}>
-          <Text style={styles.cardTitle}>🛰️ Live Tracking (Beta)</Text>
+        <View style={[styles.liveSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>🛰️ Live Tracking (Beta)</Text>
           {liveTrack ? (
             <View style={{ marginBottom: 10 }}>
-              <Text style={styles.metaText}>publicId: {liveTrack.publicId}</Text>
-              <Text style={styles.metaText}>ingest: {liveTrack.ingestUrl}</Text>
-              <Text style={styles.metaText}>poll: {liveTrack.pollUrl}</Text>
-              <Text style={styles.metaText}>map: {liveTrack.mapUrl}</Text>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>publicId: {liveTrack.publicId}</Text>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>ingest: {liveTrack.ingestUrl}</Text>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>poll: {liveTrack.pollUrl}</Text>
+              <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>map: {liveTrack.mapUrl}</Text>
             </View>
           ) : (
-            <Text style={styles.noLocationText}>No live track created yet.</Text>
+            <Text style={[styles.noLocationText, { color: theme.colors.textSecondary }]}>No live track created yet.</Text>
           )}
 
           {/* Unified Live Tracking Button */}
@@ -509,34 +511,34 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
 
         {/* Manual Input Section */}
         {showManualInput && (
-          <View style={styles.manualSection}>
-            <Text style={styles.cardTitle}>Manual Coordinates</Text>
+          <View style={[styles.manualSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Manual Coordinates</Text>
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Latitude</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Latitude</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.mode === 'dark' ? '#1a1a1a' : '#f5f5f5', borderColor: theme.colors.border, color: theme.colors.text }]}
                   value={manualLat}
                   onChangeText={setManualLat}
                   placeholder="-90 to 90"
                   keyboardType="numeric"
-                  placeholderTextColor="#666"
+                  placeholderTextColor={theme.colors.textSecondary}
                 />
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Longitude</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Longitude</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.mode === 'dark' ? '#1a1a1a' : '#f5f5f5', borderColor: theme.colors.border, color: theme.colors.text }]}
                   value={manualLon}
                   onChangeText={setManualLon}
                   placeholder="-180 to 180"
                   keyboardType="numeric"
-                  placeholderTextColor="#666"
+                  placeholderTextColor={theme.colors.textSecondary}
                 />
               </View>
             </View>
             <TouchableOpacity
-              style={styles.updateButton}
+              style={[styles.updateButton, { backgroundColor: '#4CAF50' }]}
               onPress={handleManualLocationUpdate}
             >
               <Ionicons name="checkmark" size={20} color="#fff" />
@@ -598,7 +600,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
 
         {/* Clear Data Button */}
         <TouchableOpacity
-          style={styles.clearButton}
+          style={[styles.clearButton, { backgroundColor: theme.colors.danger }]}
           onPress={handleClearLocation}
         >
           <Ionicons name="trash" size={20} color="#fff" />
@@ -623,7 +625,6 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   section: {
     padding: 20,
@@ -631,36 +632,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 20,
     textAlign: 'center',
   },
   locationCard: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 12,
   },
   locationText: {
     fontSize: 16,
-    color: '#4CAF50',
     fontFamily: 'monospace',
     marginBottom: 4,
   },
   metaText: {
     fontSize: 14,
-    color: '#aaa',
     marginBottom: 2,
   },
   noLocationText: {
     fontSize: 16,
-    color: '#666',
     fontStyle: 'italic',
   },
   buttonRow: {
@@ -670,7 +666,6 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: '#1e90ff',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -692,6 +687,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: '#333',
+    opacity: 0.5,
   },
   buttonText: {
     color: '#fff',
@@ -699,10 +695,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   manualSection: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
   inputRow: {
     flexDirection: 'row',
@@ -714,20 +710,15 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    color: '#aaa',
     marginBottom: 4,
   },
   input: {
-    backgroundColor: '#1a1a1a',
     borderRadius: 6,
     padding: 12,
-    color: '#fff',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#444',
   },
   updateButton: {
-    backgroundColor: '#4CAF50',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -736,21 +727,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   wayfareSection: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
   wayfareStatus: {
     marginBottom: 12,
   },
   wayfareText: {
     fontSize: 16,
-    color: '#fff',
     marginBottom: 4,
   },
   clearButton: {
-    backgroundColor: '#f44336',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -758,12 +747,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 8,
+    marginBottom: 20,
   },
   liveSection: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     marginTop: 8,
+    borderWidth: 1,
   },
 });

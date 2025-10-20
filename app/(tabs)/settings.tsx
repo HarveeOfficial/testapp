@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { clearToken } from '../../utils/auth';
 import { GeoTaggingService } from '../../utils/geoTagging';
+import { useTheme } from '../../utils/ThemeContext';
 
 interface SettingsData {
   highAccuracy: boolean;
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
   });
 
   const geoService = GeoTaggingService.getInstance();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadSettings();
@@ -218,63 +220,89 @@ export default function SettingsScreen() {
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#0f0f0f" />
-      <ScrollView style={styles.container}>
+      <StatusBar 
+        barStyle={theme.mode === 'dark' ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.colors.background} 
+      />
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
           <View style={styles.headerContent}>
-            <Ionicons name="settings" size={40} color="#1e90ff" />
+            <Ionicons name="settings" size={40} color={theme.colors.primary} />
             <View style={styles.headerText}>
-              <Text style={styles.title}>Settings</Text>
-              <Text style={styles.subtitle}>Manage your preferences</Text>
+              <Text style={[styles.title, { color: theme.colors.text }]}>Settings</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Manage your preferences</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.content}>
-          {/* Location Settings Card */}
-          <View style={styles.card}>
+          {/* Appearance Settings Card */}
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardHeader}>
-              <Ionicons name="location" size={20} color="#1e90ff" />
-              <Text style={styles.cardTitle}>Location</Text>
+              <Ionicons name="contrast" size={20} color={theme.colors.primary} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Appearance</Text>
             </View>
             
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>High Accuracy GPS</Text>
-                <Text style={styles.settingDescription}>Best accuracy, more battery</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Dark Mode</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Use dark theme</Text>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={toggleTheme}
+                trackColor={{ false: '#444', true: theme.colors.primary }}
+                thumbColor={isDarkMode ? '#fff' : '#ccc'}
+              />
+            </View>
+          </View>
+
+          {/* Location Settings Card */}
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="location" size={20} color={theme.colors.primary} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Location</Text>
+            </View>
+            
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>High Accuracy GPS</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Best accuracy, more battery</Text>
               </View>
               <Switch
                 value={settings.highAccuracy}
                 onValueChange={() => handleToggle('highAccuracy')}
-                trackColor={{ false: '#444', true: '#1e90ff' }}
+                trackColor={{ false: '#444', true: theme.colors.primary }}
                 thumbColor={settings.highAccuracy ? '#fff' : '#ccc'}
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Auto-Start Watch</Text>
-                <Text style={styles.settingDescription}>Start on app open</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Auto-Start Watch</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Start on app open</Text>
               </View>
               <Switch
                 value={settings.autoWatch}
                 onValueChange={() => handleToggle('autoWatch')}
-                trackColor={{ false: '#444', true: '#1e90ff' }}
+                trackColor={{ false: '#444', true: theme.colors.primary }}
                 thumbColor={settings.autoWatch ? '#fff' : '#ccc'}
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Save Wayfare Data</Text>
-                <Text style={styles.settingDescription}>Track movement history</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Save Wayfare Data</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Track movement history</Text>
               </View>
               <Switch
                 value={settings.saveWayfare}
@@ -286,95 +314,95 @@ export default function SettingsScreen() {
           </View>
 
           {/* Permissions Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="shield-checkmark" size={20} color="#4CAF50" />
-              <Text style={styles.cardTitle}>Permissions</Text>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Permissions</Text>
             </View>
             
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <TouchableOpacity 
               style={styles.buttonSmall}
               onPress={handleCheckPermissions}
             >
-              <Text style={styles.buttonSmallText}>Check Location Permissions</Text>
-              <Ionicons name="chevron-forward" size={18} color="#aaa" />
+              <Text style={[styles.buttonSmallText, { color: theme.colors.text }]}>Check Location Permissions</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Data Management Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="download" size={20} color="#ff9800" />
-              <Text style={styles.cardTitle}>Data</Text>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Data</Text>
             </View>
             
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <TouchableOpacity 
               style={styles.buttonSmall}
               onPress={handleExportData}
             >
-              <Text style={styles.buttonSmallText}>Export Location Data</Text>
-              <Ionicons name="chevron-forward" size={18} color="#aaa" />
+              <Text style={[styles.buttonSmallText, { color: theme.colors.text }]}>Export Location Data</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <TouchableOpacity 
-              style={[styles.buttonSmall, styles.dangerButtonSmall]}
+              style={[styles.buttonSmall, { backgroundColor: theme.mode === 'dark' ? 'rgba(244, 67, 54, 0.05)' : 'rgba(244, 67, 54, 0.1)' }]}
               onPress={handleClearAllData}
             >
-              <Text style={styles.dangerButtonText}>Clear All Data</Text>
-              <Ionicons name="chevron-forward" size={18} color="#f44336" />
+              <Text style={[styles.dangerButtonText]}>Clear All Data</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.danger} />
             </TouchableOpacity>
           </View>
 
           {/* Account Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardHeader}>
-              <Ionicons name="log-out" size={20} color="#f44336" />
-              <Text style={styles.cardTitle}>Account</Text>
+              <Ionicons name="log-out" size={20} color={theme.colors.danger} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Account</Text>
             </View>
             
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <TouchableOpacity 
-              style={[styles.buttonSmall, styles.dangerButtonSmall]}
+              style={[styles.buttonSmall, { backgroundColor: theme.mode === 'dark' ? 'rgba(244, 67, 54, 0.05)' : 'rgba(244, 67, 54, 0.1)' }]}
               onPress={handleLogout}
             >
-              <Text style={styles.dangerButtonText}>Logout</Text>
-              <Ionicons name="chevron-forward" size={18} color="#f44336" />
+              <Text style={[styles.dangerButtonText]}>Logout</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.danger} />
             </TouchableOpacity>
           </View>
 
           {/* App Info Card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="information-circle" size={20} color="#9c27b0" />
-              <Text style={styles.cardTitle}>About</Text>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>About</Text>
             </View>
             
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Geohash Precision</Text>
-              <Text style={styles.infoValue}>{settings.geohashPrecision}</Text>
+              <Text style={[styles.infoLabel, { color: theme.colors.text }]}>Geohash Precision</Text>
+              <Text style={[styles.infoValue, { color: theme.colors.textSecondary }]}>{settings.geohashPrecision}</Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Location Sources</Text>
-              <Text style={styles.infoValue}>GPS, Network, Manual</Text>
+              <Text style={[styles.infoLabel, { color: theme.colors.text }]}>Location Sources</Text>
+              <Text style={[styles.infoValue, { color: theme.colors.textSecondary }]}>GPS, Network, Manual</Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Data Storage</Text>
-              <Text style={styles.infoValue}>Local Device</Text>
+              <Text style={[styles.infoLabel, { color: theme.colors.text }]}>Data Storage</Text>
+              <Text style={[styles.infoValue, { color: theme.colors.textSecondary }]}>Local Device</Text>
             </View>
           </View>
 
