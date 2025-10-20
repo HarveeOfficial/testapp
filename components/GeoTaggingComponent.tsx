@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { getToken } from '../utils/auth';
+import { CSVExportService } from '../utils/csvExport';
 import { GeoTaggingService, LocationData, WayfareTrack } from '../utils/geoTagging';
 import { clearSavedLiveTrack, endLiveTrackSession, ensureLiveTrack, getSavedLiveTrack, pushLocationAsLivePoint } from '../utils/liveTracking';
 import { useTheme } from '../utils/ThemeContext';
@@ -44,10 +45,12 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   const [liveTrack, setLiveTrack] = useState<null | { publicId: string; writeKey: string; ingestUrl: string; pollUrl: string; mapUrl: string }>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [recordedCoordinatesCount, setRecordedCoordinatesCount] = useState(0);
   const streamingRef = useRef(false);
   const liveTrackRef = useRef<typeof liveTrack>(null);
 
   const geoService = GeoTaggingService.getInstance();
+  const csvService = CSVExportService.getInstance();
 
   // Load saved position on mount
   useEffect(() => {
@@ -115,6 +118,12 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
         setCurrentLocation(location);
         setManualLat(location.latitude.toFixed(6));
         setManualLon(location.longitude.toFixed(6));
+        
+        // Record coordinate for CSV export
+        await csvService.recordWatchCoordinate(location);
+        const count = await csvService.getWatchCoordinatesCount();
+        setRecordedCoordinatesCount(count);
+        
         // If streaming is enabled and live track exists, push point
         const lt = liveTrackRef.current;
         if (streamingRef.current && lt) {
@@ -135,7 +144,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
         Alert.alert('Error', 'Could not start location watching. Please check permissions.');
       }
     }
-  }, [isWatching]);
+  }, [isWatching, geoService, csvService]);
 
   const handleCreateLiveTrack = useCallback(async () => {
     if (liveTrack) {
@@ -316,7 +325,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
     setCurrentLocation(location);
     geoService.saveCurrentPosition(location);
     Alert.alert('Success', 'Manual location updated');
-  }, [manualLat, manualLon]);
+  }, [manualLat, manualLon, geoService]);
 
   const handleOpenWebCreate = useCallback(() => {
     const extra: any = Constants.expoConfig?.extra || {};
@@ -343,7 +352,39 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
     Linking.openURL(url).catch(() => {
       Alert.alert('Open failed', 'Could not open the web form URL.');
     });
-  }, [currentLocation]);
+  }, [currentLocation, geoService]);
+
+  const handleExportCSV = useCallback(async () => {
+    try {
+      if (recordedCoordinatesCount === 0) {
+        Alert.alert('No data', 'Start watch to record coordinates first.');
+        return;
+      }
+      await csvService.exportAsCSV();
+      Alert.alert('Success', `Exported ${recordedCoordinatesCount} coordinates to CSV`);
+    } catch (error: any) {
+      Alert.alert('Export Failed', error?.message || 'Could not export coordinates');
+    }
+  }, [recordedCoordinatesCount, csvService]);
+
+  const handleClearRecordedCoordinates = useCallback(async () => {
+    Alert.alert(
+      'Clear Recorded Coordinates',
+      `This will delete all ${recordedCoordinatesCount} recorded coordinates. Continue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            await csvService.clearWatchCoordinates();
+            setRecordedCoordinatesCount(0);
+            Alert.alert('Success', 'Recorded coordinates cleared');
+          }
+        }
+      ]
+    );
+  }, [recordedCoordinatesCount, csvService]);
 
   const formatAccuracy = (accuracy?: number): string => {
     if (!accuracy) return '';
@@ -546,6 +587,37 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
             </TouchableOpacity>
           </View>
         )}
+
+        {/* CSV Export Section */}
+        <View style={[styles.csvSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>📊 GPS Watch Recording</Text>
+          <View style={{ marginBottom: 12 }}>
+            <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
+              Recorded: {recordedCoordinatesCount} coordinates
+            </Text>
+            <Text style={[styles.metaText, { color: theme.colors.textSecondary, fontSize: 12 }]}>
+              Start &quot;Watch&quot; to log coordinates. Press Export to download as CSV.
+            </Text>
+          </View>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSuccess, recordedCoordinatesCount === 0 && styles.buttonDisabled]}
+              onPress={handleExportCSV}
+              disabled={recordedCoordinatesCount === 0}
+            >
+              <Ionicons name="download-outline" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Export CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonDanger, recordedCoordinatesCount === 0 && styles.buttonDisabled]}
+              onPress={handleClearRecordedCoordinates}
+              disabled={recordedCoordinatesCount === 0}
+            >
+              <Ionicons name="trash-outline" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Wayfare Tracking Section */}
         {/* {showWayfare && (
@@ -754,6 +826,12 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     marginTop: 8,
+    borderWidth: 1,
+  },
+  csvSection: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
   },
 });
