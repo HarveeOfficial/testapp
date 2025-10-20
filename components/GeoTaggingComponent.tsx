@@ -366,7 +366,7 @@ export const GeoTaggingComponent: React.FC<GeoTaggingComponentProps> = ({
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>📍 Geo-Tagging</Text>
+        {/* <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>📍 Geo-Tagging</Text> */}
         
         {/* Current Location Display */}
         <View style={[styles.locationCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
